@@ -232,7 +232,11 @@ export default function Dashboard() {
 
       <div className="mt-6 grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
         <div className="space-y-6">
-          <StatusCard status={status} isLoading={statusQuery.isFetching} />
+          <StatusCard
+            status={status}
+            isLoading={statusQuery.isFetching}
+            devices={devices}
+          />
           <DeviceTable devices={devices} status={status} />
         </div>
         <Card className="p-5">

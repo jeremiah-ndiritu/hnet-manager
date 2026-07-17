@@ -14,17 +14,16 @@ export default function LogsPage() {
     refetchInterval: 10000,
   });
 
-  const logs = logsQuery.data?.logs ?? [];
-
   const filteredLogs = useMemo(() => {
     const query = search.trim().toLowerCase();
+    const logs = logsQuery.data?.logs ?? [];
     if (!query) return logs;
     return logs.filter((entry) =>
       `${entry.message} ${entry.level} ${entry.timestamp}`
         .toLowerCase()
         .includes(query),
     );
-  }, [logs, search]);
+  }, [logsQuery.data?.logs, search]);
 
   return (
     <div className="page py-6">

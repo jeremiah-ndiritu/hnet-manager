@@ -66,15 +66,29 @@ export default function DeviceTable({ devices, status }: DeviceTableProps) {
               </tr>
             </thead>
             <tbody className="divide-y divide-border bg-card">
-              {devices.map((device) => (
-                <tr key={`${device.ip}-${device.mac}`}>
-                  <td className="px-4 py-3 font-medium">
-                    {device.hostname || "Unknown device"}
-                  </td>
-                  <td className="px-4 py-3 text-text-muted">{device.ip}</td>
-                  <td className="px-4 py-3 text-text-muted">{device.mac}</td>
-                </tr>
-              ))}
+              {devices.map((device) => {
+                const details = [device.manufacturer, device.deviceType]
+                  .filter(Boolean)
+                  .join(" • ");
+                return (
+                  <tr key={`${device.ip}-${device.mac}`}>
+                    <td className="px-4 py-3">
+                      <div className="font-medium">
+                        {device.displayName || device.hostname || "Unknown Device"}
+                      </div>
+                      {details ? (
+                        <div className="mt-1 text-xs text-text-muted">{details}</div>
+                      ) : null}
+                    </td>
+                    <td className="px-4 py-3 text-text-muted">
+                      {device.ipAddress || device.ip}
+                    </td>
+                    <td className="px-4 py-3 text-text-muted">
+                      {device.macAddress || device.mac}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}

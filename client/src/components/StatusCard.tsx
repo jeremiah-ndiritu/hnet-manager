@@ -1,18 +1,21 @@
 ﻿import { CircleAlert, Wifi } from "lucide-react";
 import { Card } from "./ui";
-import type { HotspotStatus } from "../types";
+import type { Device, HotspotStatus } from "../types";
 
 interface StatusCardProps {
   status: HotspotStatus | null;
   isLoading?: boolean;
+  devices: Device[];
 }
 
 export default function StatusCard({
   status,
   isLoading = false,
+  devices,
 }: StatusCardProps) {
+  const connectedClients = devices.length;
   const availableSlots = Math.max(
-    (status?.maxClients ?? 0) - (status?.clients ?? 0),
+    (status?.maxClients ?? 0) - connectedClients,
     0,
   );
 
@@ -54,7 +57,7 @@ export default function StatusCard({
             <div className="text-sm font-medium text-text-muted">
               Connected clients
             </div>
-            <p className="mt-2 text-lg font-semibold">{status?.clients ?? 0}</p>
+            <p className="mt-2 text-lg font-semibold">{connectedClients}</p>
           </div>
           <div className="rounded-xl border border-border bg-surface/70 p-3">
             <div className="text-sm font-medium text-text-muted">Capacity</div>
