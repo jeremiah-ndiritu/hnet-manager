@@ -1,1 +1,3 @@
-﻿export default function Controls() { return (<div>Controls</div>); }
+﻿export default function Controls() {
+  return <div>Controls</div>;
+}
