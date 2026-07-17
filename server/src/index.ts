@@ -1,16 +1,14 @@
-﻿import express from 'express';
-import cors from 'cors';
-import wifiRouter from './routes/wifi.routes.ts';
+﻿import app from "./app";
+import { elevate } from "./utils/elevate";
+import { isAdmin } from "./utils/isAdmin";
 
-const app = express();
 const PORT = process.env.PORT || 4000;
 
-app.use(cors());
-app.use(express.json());
-
-// Mount routes
-app.use('/api/wifi', wifiRouter);
-
+if (!isAdmin()) {
+  console.error("Not an Administrator. Elevating...");
+  elevate()
+  console.log("Elevated")
+}
 app.listen(PORT, () => {
-  console.log(Server running quietly on http://localhost:\);
+  console.log(`Server running quietly on http://localhost:${PORT}`);
 });

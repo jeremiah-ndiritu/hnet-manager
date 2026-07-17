@@ -1,8 +1,8 @@
-﻿import { Router } from 'express';
-const router = Router();
+﻿import { Router } from "express";
+const wifiRouter: Router = Router();
 
-router.get('/status', (req, res) => {
-  res.json({ status: 'active' });
+wifiRouter.get("/status", (req, res) => {
+  res.json({ status: "active" });
 });
 
-export default router;
+export default wifiRouter;

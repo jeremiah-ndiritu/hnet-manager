@@ -23,6 +23,9 @@
     // Stricter Typechecking Options
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true,
+    "paths": {
+      "@/*": ["./src/*"]
+    },
 
     // Style Options
     // "noImplicitReturns": true,
