@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Privileges Required</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://jsdelivr.net"></script>
+    <style>
+        /* Inter & JetBrains Mono Fonts via System Fallbacks */
+        :root {
+            font-family: Inter, "Segoe UI", Roboto, system-ui, sans-serif;
+            /* Custom Token Equivalents matching your theme */
+            --color-bg: light-dark(#f8fafc, #0f172a);
+            --color-surface: light-dark(#ffffff, #1e293b);
+            --color-primary: light-dark(#2563eb, #60a5fa);
+            --color-text: light-dark(#0f172a, #f8fafc);
+            --color-text-muted: light-dark(#64748b, #94a3b8);
+            --color-border: light-dark(#e2e8f0, #334155);
+            --color-danger: light-dark(#dc2626, #f87171);
+            --color-card: light-dark(#ffffff, #1e293b);
+        }
+
+        html,
+        body {
+            background-color: var(--color-bg);
+            color: var(--color-text);
+            min-height: 100vh;
+        }
+    </style>
+</head>
+
+<body class="flex flex-col items-center justify-center px-4 selection:bg-[#2563eb] selection:text-white">
+
+    <!-- Main UI Container Card -->
+    <div
+        class="w-full max-w-md p-6 text-center rounded-xl border shadow-md bg-[var(--color-card)] border-[var(--color-border)] md:p-8">
+
+        <!-- Warning Icon Visual Frame -->
+        <div
+            class="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-red-500/10 text-[var(--color-danger)]">
+            <svg xmlns="http://w3.org" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"
+                class="h-7 w-7">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+            </svg>
+        </div>
+
+        <!-- Message Headers -->
+        <h1 class="text-xl font-bold tracking-tight sm:text-2xl">
+            Admin Privileges Required
+        </h1>
+        <p class="mt-3 text-sm text-[var(--color-text-muted)] leading-relaxed">
+            HNetManager needs local machine elevation to programmatically interface with system wireless network
+            adapters and execute host network commands.
+        </p>
+
+        <!-- Instructive Walkthrough Block Layout -->
+        <div class="my-6 rounded-lg p-4 text-left border bg-[var(--color-surface)] border-[var(--color-border)]">
+            <h2 class="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
+                How to resolve:
+            </h2>
+            <ol class="mt-2 space-y-2.5 text-sm">
+                <li class="flex items-start gap-2">
+                    <span
+                        class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-mono bg-[var(--color-border)] text-[var(--color-text-muted)]">
+                        1
+                    </span>
+                    <span>Close the dead application terminal window.</span>
+                </li>
+                <li class="flex items-start gap-2">
+                    <span
+                        class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-mono bg-[var(--color-border)] text-[var(--color-text-muted)]">
+                        2
+                    </span>
+                    <span>
+                        Right-click the executable file <code
+                            class="font-mono text-xs px-1 py-0.5 rounded border border-[var(--color-border)] text-[var(--color-danger)] bg-[var(--color-bg)]">HNetManager.exe</code>.
+                    </span>
+                </li>
+                <li class="flex items-start gap-2">
+                    <span
+                        class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-mono font-bold bg-blue-500/10 text-[var(--color-primary)]">
+                        3
+                    </span>
+                    <span class="font-medium">
+                        Select <strong class="font-semibold text-[var(--color-primary)]">Run as administrator</strong>.
+                    </span>
+                </li>
+            </ol>
+        </div>
+
+        <!-- Operational Dismiss Button -->
+        <button onclick="window.close()"
+            class="w-full inline-flex items-center justify-center rounded-lg px-4 py-2.5 font-medium border shadow-sm transition-all duration-200 cursor-pointer bg-[var(--color-surface)] border-[var(--color-border)] text-[var(--color-text)] hover:opacity-90">
+            Dismiss & Close Page
+        </button>
+    </div>
+
+    <!-- Background Micro Branding Disclaimer -->
+    <span class="mt-4 text-xs font-mono tracking-tight text-[var(--color-text-muted)]/60">
+        Process Exited (Code 1) · HNet Security Subsystem
+    </span>
+
+</body>
+
+</html>
