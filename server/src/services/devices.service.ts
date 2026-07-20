@@ -1,4 +1,4 @@
-﻿import { run } from "@/utils/exec";
+﻿import { run } from "../utils/exec";
 
 export interface Device {
   ip: string;
@@ -16,20 +16,20 @@ const VENDOR_LOOKUP: Record<string, string> = {
   E84349: "Samsung",
   A4DDAA: "Apple",
   A4D18B: "Apple",
-  000000: "Unknown",
-  001122: "Cisco",
-  000E0C: "Cisco",
-  001E2A: "Dell",
-  00E04C: "Intel",
-  00A0C9: "Hewlett Packard",
-  001E67: "Hewlett Packard",
-  001C0F: "Huawei",
-  0025B3: "Huawei",
-  0018F3: "Lenovo",
-  0004EA: "Xiaomi",
-  0016F6: "Xiaomi",
-  001A11: "Google",
-  00157D: "Microsoft",
+  "000000": "Unknown",
+  "001122": "Cisco",
+  "000E0C": "Cisco",
+  "001E2A": "Dell",
+  "00E04C": "Intel",
+  "00A0C9": "Hewlett Packard",
+  "001E67": "Hewlett Packard",
+  "001C0F": "Huawei",
+  "0025B3": "Huawei",
+  "0018F3": "Lenovo",
+  "0004EA": "Xiaomi",
+  "0016F6": "Xiaomi",
+  "001A11": "Google",
+  "00157D": "Microsoft",
 };
 
 function normalizeIp(value: string): string {
@@ -37,7 +37,10 @@ function normalizeIp(value: string): string {
 }
 
 function normalizeMac(value: string): string {
-  const cleaned = value.trim().toLowerCase().replace(/[^0-9a-f]/g, "");
+  const cleaned = value
+    .trim()
+    .toLowerCase()
+    .replace(/[^0-9a-f]/g, "");
   if (cleaned.length !== 12) return "";
   return `${cleaned.slice(0, 2)}-${cleaned.slice(2, 4)}-${cleaned.slice(4, 6)}-${cleaned.slice(6, 8)}-${cleaned.slice(8, 10)}-${cleaned.slice(10, 12)}`;
 }
@@ -62,9 +65,14 @@ function isLikelyRealDevice(ip: string, mac: string): boolean {
   if (!normalizedIp || !normalizedMac) return false;
   if (normalizedIp === "255.255.255.255") return false;
   if (normalizedIp.endsWith(".255")) return false;
-  if (normalizedIp.startsWith("224.") || normalizedIp.startsWith("239.")) return false;
+  if (normalizedIp.startsWith("224.") || normalizedIp.startsWith("239."))
+    return false;
   if (normalizedIp === "0.0.0.0" || normalizedIp === "127.0.0.1") return false;
-  if (normalizedMac === "ff-ff-ff-ff-ff-ff" || normalizedMac === "00-00-00-00-00-00") return false;
+  if (
+    normalizedMac === "ff-ff-ff-ff-ff-ff" ||
+    normalizedMac === "00-00-00-00-00-00"
+  )
+    return false;
 
   return true;
 }
@@ -72,8 +80,17 @@ function isLikelyRealDevice(ip: string, mac: string): boolean {
 function sanitizeHostname(value: string | undefined): string | null {
   if (!value) return null;
   const cleaned = value.trim().replace(/\.$/, "");
-  const placeholderValues = ["unknown", "physical", "static", "--", "-", "none", "na"];
-  if (!cleaned || placeholderValues.includes(cleaned.toLowerCase())) return null;
+  const placeholderValues = [
+    "unknown",
+    "physical",
+    "static",
+    "--",
+    "-",
+    "none",
+    "na",
+  ];
+  if (!cleaned || placeholderValues.includes(cleaned.toLowerCase()))
+    return null;
   return cleaned;
 }
 
@@ -84,19 +101,37 @@ function inferManufacturer(mac: string): string | null {
   return VENDOR_LOOKUP[oui] || null;
 }
 
-function inferDeviceType(hostname: string | null, manufacturer: string | null): string | null {
+function inferDeviceType(
+  hostname: string | null,
+  manufacturer: string | null,
+): string | null {
   const source = `${hostname || ""} ${manufacturer || ""}`.toLowerCase();
   if (!source) return null;
   if (/iphone|ipad|ipod|macbook|imac/i.test(source)) return "Phone";
-  if (/android|galaxy|samsung|pixel|xiaomi|redmi|oneplus|oppo|vivo|motorola|nokia/i.test(source)) return "Phone";
-  if (/laptop|notebook|surface|thinkpad|xps|latitude|elitebook|spectre|ultrabook/i.test(source)) return "Laptop";
+  if (
+    /android|galaxy|samsung|pixel|xiaomi|redmi|oneplus|oppo|vivo|motorola|nokia/i.test(
+      source,
+    )
+  )
+    return "Phone";
+  if (
+    /laptop|notebook|surface|thinkpad|xps|latitude|elitebook|spectre|ultrabook/i.test(
+      source,
+    )
+  )
+    return "Laptop";
   if (/desktop|workstation|pc|win/i.test(source)) return "Desktop";
-  if (/router|switch|hub|nas|printer|access point|network/i.test(source)) return "Network Device";
+  if (/router|switch|hub|nas|printer|access point|network/i.test(source))
+    return "Network Device";
   if (manufacturer) return "Device";
   return null;
 }
 
-function buildDisplayName(hostname: string | null, manufacturer: string | null, deviceType: string | null): string {
+function buildDisplayName(
+  hostname: string | null,
+  manufacturer: string | null,
+  deviceType: string | null,
+): string {
   if (hostname) return hostname;
   if (manufacturer) {
     const normalizedManufacturer = manufacturer.replace(/\s+Device$/i, "");
@@ -144,24 +179,33 @@ export const getConnectedDevices = async (): Promise<Device[]> => {
       if (parts.length < 2) continue;
 
       const [ip, mac] = parts;
-      if (!isLikelyRealDevice(ip, mac)) continue;
+      if (!isLikelyRealDevice(ip || "", mac || "")) continue;
 
-      const normalizedMac = normalizeMac(mac);
-      const hostname = sanitizeHostname(parts[2] && parts[2] !== "dynamic" ? parts[2] : undefined);
-      const resolvedHostname = hostname || (await resolveHostname(ip));
-      const manufacturer = inferManufacturer(normalizedMac || mac);
-      const deviceType = inferDeviceType(resolvedHostname || hostname, manufacturer);
-      const displayName = buildDisplayName(resolvedHostname || hostname, manufacturer, deviceType);
+      const normalizedMac = normalizeMac(mac || "");
+      const hostname = sanitizeHostname(
+        parts[2] && parts[2] !== "dynamic" ? parts[2] : undefined,
+      );
+      const resolvedHostname = hostname || (await resolveHostname(ip || ""));
+      const manufacturer = inferManufacturer(normalizedMac || mac || "");
+      const deviceType = inferDeviceType(
+        resolvedHostname || hostname,
+        manufacturer,
+      );
+      const displayName = buildDisplayName(
+        resolvedHostname || hostname,
+        manufacturer,
+        deviceType,
+      );
 
       devices.push({
-        ip: normalizeIp(ip),
-        mac: normalizedMac || mac,
+        ip: normalizeIp(ip || ""),
+        mac: normalizedMac || mac || "unknown mac",
         hostname: resolvedHostname || hostname || null,
         displayName,
         manufacturer,
         deviceType,
-        ipAddress: normalizeIp(ip),
-        macAddress: normalizedMac || mac,
+        ipAddress: normalizeIp(ip || ""),
+        macAddress: normalizedMac || mac || "unknown mac address",
       });
     }
 

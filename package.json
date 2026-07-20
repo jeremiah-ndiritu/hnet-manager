@@ -4,7 +4,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build:client": "pnpm --filter client build",
+    "build:server": "pnpm --filter server build",
+    "bundle:server": "ncc build server/dist/index.js -o server/bundled -m",
+    "package": "pnpm build:client && pnpm build:server && pnpm bundle:server && pkg server/bundled/index.js --target node18-win-x64 --output HNetManager.exe"
   },
   "keywords": [],
   "author": "",

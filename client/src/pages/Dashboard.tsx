@@ -3,12 +3,12 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { RefreshCw, Radio, Sparkles, Logs as LogsIcon } from "lucide-react";
 import toast from "react-hot-toast";
-import { wifiApi } from "../api/wifi";
-import { Button, Card, Input } from "../components/ui";
-import DeviceTable from "../components/DeviceTable";
-import Logs from "../components/Logs";
-import StatusCard from "../components/StatusCard";
-import type { DevicesResponse, LogsResponse, StatusResponse } from "../types";
+import { wifiApi } from "@/api/wifi";
+import { Button, Card, Input } from "@/components/ui";
+import DeviceTable from "@/components/DeviceTable";
+import Logs from "@/components/Logs";
+import StatusCard from "@/components/StatusCard";
+import type { DevicesResponse, LogsResponse, StatusResponse } from "@/types";
 
 export default function Dashboard() {
   const [pendingAction, setPendingAction] = useState<"start" | "stop" | null>(
@@ -75,7 +75,7 @@ export default function Dashboard() {
     }
   };
 
-  const handleRename = async (event: React.FormEvent<HTMLFormElement>) => {
+  const handleRename = async (event: React.SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     const normalizedSsid = ssid.trim();
     const normalizedKey = key.trim();
@@ -103,7 +103,8 @@ export default function Dashboard() {
           response?.message || "The network name could not be updated.",
         );
       }
-    } catch {
+    } catch (error) {
+      console.error(error)
       toast.error("The hotspot service could not update the network name.");
     } finally {
       await Promise.all([

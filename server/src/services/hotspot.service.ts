@@ -1,4 +1,4 @@
-﻿import { run } from "@/utils/exec";
+﻿import { run } from "../utils/exec";
 
 interface HotspotStatus {
   started: boolean;

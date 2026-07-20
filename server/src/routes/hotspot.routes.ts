@@ -1,7 +1,7 @@
-import { getConnectedDevices } from "@/services/devices.service";
-import { hotspotService } from "@/services/hotspot.service";
-import { log } from "@/utils/logger";
-import { Router } from "express";
+import { getConnectedDevices } from "../services/devices.service";
+import { hotspotService } from "../services/hotspot.service";
+import { log } from "../utils/logger";
+import { Router, type Response } from "express";
 
 const hotspotRouter: Router = Router();
 
@@ -11,7 +11,7 @@ const actionResult = (success: boolean, message: string) => ({
 });
 
 const handleAction = async (
-  res: any,
+  res: Response,
   action: () => Promise<{ stdout?: string; stderr?: string }>,
 ) => {
   try {
@@ -33,6 +33,7 @@ const handleAction = async (
 
 hotspotRouter.post("/set", async (req, res) => {
   try {
+    console.log('set request...')
     const { ssid = "HNet", key = "disconnect" } = req.body as {
       ssid?: string;
       key?: string;

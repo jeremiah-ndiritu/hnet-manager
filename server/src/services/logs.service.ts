@@ -1,4 +1,4 @@
-import { getLogs } from "@/utils/logger"
+import { getLogs } from "../utils/logger"
 
 export const logService = {
     getAll(){

@@ -1,9 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Search } from "lucide-react";
 import { Link } from "react-router-dom";
-import { wifiApi } from "../api/wifi";
-import { Button, Card, Input } from "../components/ui";
-import type { LogEntry, LogsResponse } from "../types";
+import { wifiApi } from "@/api/wifi";
+import { Button, Card, Input } from "@/components/ui";
+import type { LogEntry, LogsResponse } from "@/types";
 import { useMemo, useState } from "react";
 
 export default function LogsPage() {
@@ -58,7 +58,7 @@ export default function LogsPage() {
 
         {logsQuery.isLoading ? (
           <div className="mt-6 rounded-xl border border-border bg-surface/70 px-4 py-8 text-center text-sm text-text-muted">
-            Loading logs...
+            Loading logs@.
           </div>
         ) : filteredLogs.length === 0 ? (
           <div className="mt-6 rounded-xl border border-border bg-surface/70 px-4 py-8 text-center text-sm text-text-muted">

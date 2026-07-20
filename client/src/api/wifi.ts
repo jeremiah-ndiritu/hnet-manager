@@ -4,11 +4,16 @@ import type {
   DevicesResponse,
   LogsResponse,
   StatusResponse,
-} from "../types";
+} from "@/types";
 
 async function unwrap<T>(request: Promise<{ data: T }>): Promise<T> {
-  const response = await request;
-  return response.data;
+  try {
+    const response = await request;
+    return response.data;
+  } catch (error) {
+    console.error(error)
+    throw error
+  }
 }
 
 export const wifiApi = {

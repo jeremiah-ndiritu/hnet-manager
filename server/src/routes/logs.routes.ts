@@ -1,4 +1,4 @@
-import { logService } from "@/services/logs.service";
+import { logService } from "../services/logs.service";
 import { Router } from "express";
 
 const logRouter: Router = Router();
