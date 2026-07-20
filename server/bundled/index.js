@@ -22266,6 +22266,17 @@ module.exports = /*#__PURE__*/JSON.parse('{"100":"Continue","101":"Switching Pro
 /******/ 		__nccwpck_require__.o = (obj, prop) => (Object.prototype.hasOwnProperty.call(obj, prop))
 /******/ 	})();
 /******/ 	
+/******/ 	/* webpack/runtime/make namespace object */
+/******/ 	(() => {
+/******/ 		// define __esModule on exports
+/******/ 		__nccwpck_require__.r = (exports) => {
+/******/ 			if(typeof Symbol !== 'undefined' && Symbol.toStringTag) {
+/******/ 				Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
+/******/ 			}
+/******/ 			Object.defineProperty(exports, '__esModule', { value: true });
+/******/ 		};
+/******/ 	})();
+/******/ 	
 /******/ 	/* webpack/runtime/node module decorator */
 /******/ 	(() => {
 /******/ 		__nccwpck_require__.nmd = (module) => {
@@ -22284,6 +22295,13 @@ var __webpack_exports__ = {};
 // This entry need to be wrapped in an IIFE because it need to be in strict mode.
 (() => {
 "use strict";
+// ESM COMPAT FLAG
+__nccwpck_require__.r(__webpack_exports__);
+
+// EXPORTS
+__nccwpck_require__.d(__webpack_exports__, {
+  PORT: () => (/* binding */ PORT)
+});
 
 // EXTERNAL MODULE: ./server/node_modules/.pnpm/express@5.2.1/node_modules/express/index.js
 var express = __nccwpck_require__(2733);
@@ -22698,6 +22716,19 @@ app.get("{/*splat}", (req, res) => {
 });
 /* harmony default export */ const dist_app = (app);
 //# sourceMappingURL=app.js.map
+;// CONCATENATED MODULE: ./server/dist/errorApp.js
+
+
+// Create a minimal fallback server just to show the error page
+const errorApp = express_default()();
+// Reuse your existing packaged client dist path mapping
+const errorApp_frontendPath = external_path_default().join(__dirname, "client/dist");
+errorApp.use(express_default()["static"](errorApp_frontendPath));
+// Catch-all route to serve the index.html (which contains your error router/page)
+errorApp.get("{/*splat}", (req, res) => {
+    res.sendFile(external_path_default().join(errorApp_frontendPath, "index.html"));
+});
+//# sourceMappingURL=errorApp.js.map
 ;// CONCATENATED MODULE: ./server/dist/utils/isAdmin.js
 
 function isAdmin() {
@@ -22710,36 +22741,31 @@ function isAdmin() {
     }
 }
 //# sourceMappingURL=isAdmin.js.map
-;// CONCATENATED MODULE: ./server/dist/utils/elevate.js
-
-
-function ensureAdministrator() {
-    // 2. If already elevated, do nothing and allow server to start
-    if (isAdmin()) {
-        console.log("Running with Administrator privileges.");
-        return;
-    }
-    // 3. If NOT elevated, spawn an elevated instance of THIS executable and exit
-    console.log("Not an Administrator. Elevating...");
-    // process.execPath points dynamically to HNetManager.exe at runtime
-    (0,external_child_process_namespaceObject.spawn)("powershell", ["-Command", `Start-Process '${process.execPath}' -Verb RunAs`], {
-        detached: true,
-        stdio: "ignore",
-    }).unref();
-    // Kill the non-admin process immediately so it stops executing code
-    process.exit(0);
-}
-//# sourceMappingURL=elevate.js.map
 ;// CONCATENATED MODULE: ./server/dist/index.js
 
 
 
+
 const PORT = process.env.PORT || 4000;
-ensureAdministrator();
-dist_app.listen(PORT, () => {
-    console.log(`Server running quietly on http://localhost:${PORT}`);
-    run(`start http://localhost:${PORT}`);
-});
+if (!isAdmin()) {
+    const tempServer = errorApp.listen(PORT, () => {
+        // 1. Force open the browser to show the error page
+        run(`start http://localhost:${PORT}/admin-error`);
+        // 2. Allow 2 seconds for the browser process to initialize, then close everything
+        setTimeout(() => {
+            tempServer.close(() => {
+                process.exit(1);
+            });
+        }, 2000);
+    });
+}
+else {
+    // Standard production operational startup
+    dist_app.listen(PORT, () => {
+        console.log(`Server running quietly on http://localhost:${PORT}`);
+        run(`start http://localhost:${PORT}`);
+    });
+}
 //# sourceMappingURL=index.js.map
 })();
 
