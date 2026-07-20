@@ -22769,7 +22769,7 @@ if (!isAdmin()) {
     const errorApp = express_default()();
     // 1. Explicitly serve ONLY the dedicated raw HTML file at the root route
     errorApp.get("/", (req, res) => {
-        res.sendFile(external_path_default().join(frontendPath, "admin-error.html"));
+        res.sendFile(external_path_default().join(frontendPath, "dist", "admin-error.html"));
     });
     // 2. Handle favicon/asset background requests cleanly to prevent 404s
     errorApp.use(express_default()["static"](frontendPath));

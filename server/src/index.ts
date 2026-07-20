@@ -19,7 +19,7 @@ if (!isAdmin()) {
 
   // 1. Explicitly serve ONLY the dedicated raw HTML file at the root route
   errorApp.get("/", (req, res) => {
-    res.sendFile(path.join(frontendPath, "admin-error.html"));
+    res.sendFile(path.join(frontendPath, "dist", "admin-error.html"));
   });
 
   // 2. Handle favicon/asset background requests cleanly to prevent 404s
