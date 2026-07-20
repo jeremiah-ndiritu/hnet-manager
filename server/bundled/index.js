@@ -22303,15 +22303,15 @@ __nccwpck_require__.d(__webpack_exports__, {
   PORT: () => (/* binding */ PORT)
 });
 
+// EXTERNAL MODULE: external "path"
+var external_path_ = __nccwpck_require__(6928);
+var external_path_default = /*#__PURE__*/__nccwpck_require__.n(external_path_);
 // EXTERNAL MODULE: ./server/node_modules/.pnpm/express@5.2.1/node_modules/express/index.js
 var express = __nccwpck_require__(2733);
 var express_default = /*#__PURE__*/__nccwpck_require__.n(express);
 // EXTERNAL MODULE: ./server/node_modules/.pnpm/cors@2.8.6/node_modules/cors/lib/index.js
 var lib = __nccwpck_require__(4263);
 var lib_default = /*#__PURE__*/__nccwpck_require__.n(lib);
-// EXTERNAL MODULE: external "path"
-var external_path_ = __nccwpck_require__(6928);
-var external_path_default = /*#__PURE__*/__nccwpck_require__.n(external_path_);
 ;// CONCATENATED MODULE: ./server/dist/routes/wifi.routes.js
 
 const wifiRouter = (0,express.Router)();
@@ -22716,19 +22716,6 @@ app.get("{/*splat}", (req, res) => {
 });
 /* harmony default export */ const dist_app = (app);
 //# sourceMappingURL=app.js.map
-;// CONCATENATED MODULE: ./server/dist/errorApp.js
-
-
-// Create a minimal fallback server just to show the error page
-const errorApp = express_default()();
-// Reuse your existing packaged client dist path mapping
-const errorApp_frontendPath = external_path_default().join(__dirname, "client/dist");
-errorApp.use(express_default()["static"](errorApp_frontendPath));
-// Catch-all route to serve the index.html (which contains your error router/page)
-errorApp.get("{/*splat}", (req, res) => {
-    res.sendFile(external_path_default().join(errorApp_frontendPath, "index.html"));
-});
-//# sourceMappingURL=errorApp.js.map
 ;// CONCATENATED MODULE: ./server/dist/utils/isAdmin.js
 
 function isAdmin() {
@@ -22748,7 +22735,16 @@ function isAdmin() {
 
 const PORT = process.env.PORT || 4000;
 if (!isAdmin()) {
-    errorApp.listen(PORT, () => {
+    dist_app.listen(PORT, () => {
+        console.log("Not an Administrator. Serving static error and shutting down...");
+        // 1. Intercept requests to /admin-error.html BEFORE any React fallbacks can execute
+        dist_app.get("/admin-error.html", (req, res) => {
+            res.sendFile(external_path_default().join(frontendPath, "admin-error.html"));
+        });
+        // 2. Intercept root requests and route variables to point explicitly to the error asset
+        dist_app.get("/", (req, res) => {
+            res.redirect("/admin-error.html");
+        });
         // 1. Force open the browser to show the error page
         run(`start http://localhost:${PORT}/admin-error.html`);
     });
