@@ -1,6 +1,445 @@
 /******/ (() => { // webpackBootstrap
 /******/ 	var __webpack_modules__ = ({
 
+/***/ 9505:
+/***/ ((__unused_webpack_module, __webpack_exports__, __nccwpck_require__) => {
+
+"use strict";
+
+// EXPORTS
+__nccwpck_require__.d(__webpack_exports__, {
+  Ay: () => (/* binding */ dist_app)
+});
+
+// UNUSED EXPORTS: BACKEND_DIR, frontendPath, isPackaged
+
+// EXTERNAL MODULE: ./server/node_modules/.pnpm/express@5.2.1/node_modules/express/index.js
+var express = __nccwpck_require__(2733);
+var express_default = /*#__PURE__*/__nccwpck_require__.n(express);
+// EXTERNAL MODULE: ./server/node_modules/.pnpm/cors@2.8.6/node_modules/cors/lib/index.js
+var lib = __nccwpck_require__(4263);
+var lib_default = /*#__PURE__*/__nccwpck_require__.n(lib);
+// EXTERNAL MODULE: external "path"
+var external_path_ = __nccwpck_require__(6928);
+var external_path_default = /*#__PURE__*/__nccwpck_require__.n(external_path_);
+;// CONCATENATED MODULE: ./server/dist/routes/wifi.routes.js
+
+const wifiRouter = (0,express.Router)();
+wifiRouter.get("/status", (req, res) => {
+    res.json({ status: "active" });
+});
+/* harmony default export */ const wifi_routes = (wifiRouter);
+//# sourceMappingURL=wifi.routes.js.map
+// EXTERNAL MODULE: ./server/dist/utils/exec.js
+var exec = __nccwpck_require__(8321);
+;// CONCATENATED MODULE: ./server/dist/services/devices.service.js
+
+const VENDOR_LOOKUP = {
+    EA4349: "Samsung",
+    E84349: "Samsung",
+    A4DDAA: "Apple",
+    A4D18B: "Apple",
+    "000000": "Unknown",
+    "001122": "Cisco",
+    "000E0C": "Cisco",
+    "001E2A": "Dell",
+    "00E04C": "Intel",
+    "00A0C9": "Hewlett Packard",
+    "001E67": "Hewlett Packard",
+    "001C0F": "Huawei",
+    "0025B3": "Huawei",
+    "0018F3": "Lenovo",
+    "0004EA": "Xiaomi",
+    "0016F6": "Xiaomi",
+    "001A11": "Google",
+    "00157D": "Microsoft",
+};
+function normalizeIp(value) {
+    return value.trim();
+}
+function normalizeMac(value) {
+    const cleaned = value
+        .trim()
+        .toLowerCase()
+        .replace(/[^0-9a-f]/g, "");
+    if (cleaned.length !== 12)
+        return "";
+    return `${cleaned.slice(0, 2)}-${cleaned.slice(2, 4)}-${cleaned.slice(4, 6)}-${cleaned.slice(6, 8)}-${cleaned.slice(8, 10)}-${cleaned.slice(10, 12)}`;
+}
+function isFilteredOut(line) {
+    const normalized = line.trim();
+    if (!normalized)
+        return true;
+    const lowered = normalized.toLowerCase();
+    if (lowered === "---")
+        return true;
+    if (lowered.startsWith("interface:"))
+        return true;
+    if (lowered.startsWith("internet address"))
+        return true;
+    if (lowered.startsWith("physical address"))
+        return true;
+    if (lowered === "type")
+        return true;
+    if (lowered.startsWith("warning:"))
+        return true;
+    return false;
+}
+function isLikelyRealDevice(ip, mac) {
+    const normalizedIp = normalizeIp(ip);
+    const normalizedMac = normalizeMac(mac);
+    if (!normalizedIp || !normalizedMac)
+        return false;
+    if (normalizedIp === "255.255.255.255")
+        return false;
+    if (normalizedIp.endsWith(".255"))
+        return false;
+    if (normalizedIp.startsWith("224.") || normalizedIp.startsWith("239."))
+        return false;
+    if (normalizedIp === "0.0.0.0" || normalizedIp === "127.0.0.1")
+        return false;
+    if (normalizedMac === "ff-ff-ff-ff-ff-ff" ||
+        normalizedMac === "00-00-00-00-00-00")
+        return false;
+    return true;
+}
+function sanitizeHostname(value) {
+    if (!value)
+        return null;
+    const cleaned = value.trim().replace(/\.$/, "");
+    const placeholderValues = [
+        "unknown",
+        "physical",
+        "static",
+        "--",
+        "-",
+        "none",
+        "na",
+    ];
+    if (!cleaned || placeholderValues.includes(cleaned.toLowerCase()))
+        return null;
+    return cleaned;
+}
+function inferManufacturer(mac) {
+    const normalizedMac = normalizeMac(mac);
+    if (!normalizedMac)
+        return null;
+    const oui = normalizedMac.replace(/-/g, "").slice(0, 6).toUpperCase();
+    return VENDOR_LOOKUP[oui] || null;
+}
+function inferDeviceType(hostname, manufacturer) {
+    const source = `${hostname || ""} ${manufacturer || ""}`.toLowerCase();
+    if (!source)
+        return null;
+    if (/iphone|ipad|ipod|macbook|imac/i.test(source))
+        return "Phone";
+    if (/android|galaxy|samsung|pixel|xiaomi|redmi|oneplus|oppo|vivo|motorola|nokia/i.test(source))
+        return "Phone";
+    if (/laptop|notebook|surface|thinkpad|xps|latitude|elitebook|spectre|ultrabook/i.test(source))
+        return "Laptop";
+    if (/desktop|workstation|pc|win/i.test(source))
+        return "Desktop";
+    if (/router|switch|hub|nas|printer|access point|network/i.test(source))
+        return "Network Device";
+    if (manufacturer)
+        return "Device";
+    return null;
+}
+function buildDisplayName(hostname, manufacturer, deviceType) {
+    if (hostname)
+        return hostname;
+    if (manufacturer) {
+        const normalizedManufacturer = manufacturer.replace(/\s+Device$/i, "");
+        if (deviceType && deviceType !== "Device") {
+            return `${normalizedManufacturer} ${deviceType}`;
+        }
+        return `${normalizedManufacturer} Device`;
+    }
+    return "Unknown Device";
+}
+async function resolveHostname(ip) {
+    try {
+        const pingOutput = await (0,exec/* run */.e)(`ping -a -n 1 -w 300 ${ip}`);
+        const text = `${pingOutput.stdout || ""}${pingOutput.stderr || ""}`;
+        const match = text.match(/Pinging\s+([^\s\[]+)/i);
+        if (match?.[1])
+            return sanitizeHostname(match[1]);
+    }
+    catch {
+        // Ignore and fall back to NetBIOS lookup.
+    }
+    try {
+        const nbtOutput = await (0,exec/* run */.e)(`nbtstat -A ${ip}`);
+        const text = `${nbtOutput.stdout || ""}${nbtOutput.stderr || ""}`;
+        const match = text.match(/\b([A-Za-z0-9-]+)\s*<00>/i);
+        if (match?.[1])
+            return sanitizeHostname(match[1]);
+    }
+    catch {
+        // Ignore and return null.
+    }
+    return null;
+}
+const getConnectedDevices = async () => {
+    try {
+        const result = await (0,exec/* run */.e)("arp -a");
+        const rawLines = (result.stdout || "").split(/\r?\n/);
+        const devices = [];
+        for (const rawLine of rawLines) {
+            const line = rawLine.trim();
+            if (!line || isFilteredOut(line))
+                continue;
+            const parts = line.split(/\s+/).filter(Boolean);
+            if (parts.length < 2)
+                continue;
+            const [ip, mac] = parts;
+            if (!isLikelyRealDevice(ip || "", mac || ""))
+                continue;
+            const normalizedMac = normalizeMac(mac || "");
+            const hostname = sanitizeHostname(parts[2] && parts[2] !== "dynamic" ? parts[2] : undefined);
+            const resolvedHostname = hostname || (await resolveHostname(ip || ""));
+            const manufacturer = inferManufacturer(normalizedMac || mac || "");
+            const deviceType = inferDeviceType(resolvedHostname || hostname, manufacturer);
+            const displayName = buildDisplayName(resolvedHostname || hostname, manufacturer, deviceType);
+            devices.push({
+                ip: normalizeIp(ip || ""),
+                mac: normalizedMac || mac || "unknown mac",
+                hostname: resolvedHostname || hostname || null,
+                displayName,
+                manufacturer,
+                deviceType,
+                ipAddress: normalizeIp(ip || ""),
+                macAddress: normalizedMac || mac || "unknown mac address",
+            });
+        }
+        return devices;
+    }
+    catch {
+        return [];
+    }
+};
+//# sourceMappingURL=devices.service.js.map
+;// CONCATENATED MODULE: ./server/dist/services/hotspot.service.js
+
+function parseStatus(output) {
+    const normalized = output.replace(/\r/g, "");
+    const lineMap = Object.fromEntries(normalized
+        .split("\n")
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .map((line) => {
+        const parts = line.split(":");
+        const key = parts[0]?.trim().toLowerCase() ?? "";
+        if (!key || parts.length < 2)
+            return [line, ""];
+        return [key, parts.slice(1).join(":").trim()];
+    }));
+    const started = /started/i.test(normalized);
+    const ssid = lineMap["ssid name"] || lineMap["ssid"] || "HNet";
+    const maxClients = Number.parseInt(lineMap["max number of clients"] || "0", 10);
+    const clients = Number.parseInt(lineMap["number of clients"] || "0", 10);
+    const channel = Number.parseInt(lineMap["channel"] || "", 10) || null;
+    const radioType = lineMap["radio type"] || null;
+    const band = lineMap["band"] || null;
+    const bssid = lineMap["bssid"] || null;
+    return {
+        started,
+        ssid: ssid || "HNet",
+        maxClients: Number.isFinite(maxClients) ? maxClients : 0,
+        clients: Number.isFinite(clients) ? clients : 0,
+        channel,
+        radioType,
+        band,
+        bssid,
+    };
+}
+const hotspotService = {
+    set: ({ ssid, key }) => (0,exec/* run */.e)(`netsh wlan set hostednetwork mode=allow ssid=${ssid} key=${key}`),
+    start: () => (0,exec/* run */.e)("netsh wlan start hostednetwork"),
+    stop: () => (0,exec/* run */.e)("netsh wlan stop hostednetwork"),
+    status: async () => {
+        const result = await (0,exec/* run */.e)("netsh wlan show hostednetwork");
+        return {
+            success: true,
+            data: parseStatus(result.stdout || result.stderr || ""),
+        };
+    },
+};
+//# sourceMappingURL=hotspot.service.js.map
+// EXTERNAL MODULE: external "crypto"
+var external_crypto_ = __nccwpck_require__(6982);
+;// CONCATENATED MODULE: ./server/dist/utils/logger.js
+// server/src/utils/logger.ts
+
+const MAX_LOGS = 100;
+const logs = [];
+function log(level, message) {
+    logs.unshift({
+        id: (0,external_crypto_.randomUUID)(),
+        level,
+        message,
+        timestamp: new Date().toLocaleString(),
+    });
+    if (logs.length > MAX_LOGS)
+        logs.pop();
+}
+function getLogs() {
+    return logs;
+}
+//# sourceMappingURL=logger.js.map
+;// CONCATENATED MODULE: ./server/dist/routes/hotspot.routes.js
+
+
+
+
+const hotspotRouter = (0,express.Router)();
+const actionResult = (success, message) => ({
+    success,
+    message,
+});
+const handleAction = async (res, action) => {
+    try {
+        const result = await action();
+        const output = `${result.stdout || ""}${result.stderr || ""}`.trim();
+        if (!output) {
+            return res.json(actionResult(true, "The hotspot request completed successfully."));
+        }
+        return res.json(actionResult(true, output));
+    }
+    catch (error) {
+        console.error("Hotspot action failed", error);
+        return res.json(actionResult(false, "The hotspot request could not be completed."));
+    }
+};
+hotspotRouter.post("/set", async (req, res) => {
+    try {
+        console.log('set request...');
+        const { ssid = "HNet", key = "disconnect" } = req.body;
+        const normalizedSsid = `${ssid}`.trim();
+        const normalizedKey = `${key}`.trim();
+        const result = await hotspotService.set({
+            ssid: normalizedSsid || "HNet",
+            key: normalizedKey || "disconnect",
+        });
+        log("success", `Updated hotspot name to ${normalizedSsid || "HNet"}.`);
+        return res.json(actionResult(true, result.stdout ? result.stdout.trim() : "Hotspot settings updated."));
+    }
+    catch (error) {
+        console.error("error in set", error);
+        log("error", "Unable to update hotspot settings.");
+        return res.json(actionResult(false, "Unable to update hotspot settings."));
+    }
+});
+hotspotRouter.get("/start", async (_, res) => {
+    const response = await handleAction(res, () => hotspotService.start());
+    log("success", "Sharing started.");
+    return response;
+});
+hotspotRouter.post("/start", async (_, res) => {
+    const response = await handleAction(res, () => hotspotService.start());
+    log("success", "Sharing started.");
+    return response;
+});
+hotspotRouter.get("/stop", async (_, res) => {
+    const response = await handleAction(res, () => hotspotService.stop());
+    log("warning", "Sharing stopped.");
+    return response;
+});
+hotspotRouter.post("/stop", async (_, res) => {
+    const response = await handleAction(res, () => hotspotService.stop());
+    log("warning", "Sharing stopped.");
+    return response;
+});
+hotspotRouter.get("/status", async (_, res) => {
+    const result = await hotspotService.status();
+    res.json(result);
+});
+hotspotRouter.get("/devices", async (_, res) => {
+    const devices = await getConnectedDevices();
+    return res.json({ success: true, devices });
+});
+/* harmony default export */ const hotspot_routes = (hotspotRouter);
+//# sourceMappingURL=hotspot.routes.js.map
+;// CONCATENATED MODULE: ./server/dist/services/logs.service.js
+
+const logService = {
+    getAll() {
+        return getLogs();
+    }
+};
+//# sourceMappingURL=logs.service.js.map
+;// CONCATENATED MODULE: ./server/dist/routes/logs.routes.js
+
+
+const logRouter = (0,express.Router)();
+logRouter.get("/", (_, res) => {
+    return res.json({
+        success: true,
+        logs: logService.getAll(),
+        message: "Logs fetched successfully.",
+    });
+});
+/* harmony default export */ const logs_routes = (logRouter);
+//# sourceMappingURL=logs.routes.js.map
+;// CONCATENATED MODULE: ./server/dist/app.js
+
+
+
+
+
+
+const app = express_default()();
+// 1. DETERMINE PACKAGED STATE & LOCATE THE FRONTEND DIST DIRECTORY
+const isPackaged = process?.pkg ? true : false;
+const BACKEND_DIR = isPackaged
+    ? external_path_default().dirname(process.execPath)
+    : __dirname;
+// Fix: Steps out of 'server/bundled' inside the executable layout
+const frontendPath = external_path_default().join(__dirname, "client/dist");
+// 2. MIDDLEWARES & STATIC ASSET ENGINE
+app.use(lib_default()());
+app.use(express_default().json());
+// Serve your compiled static React assets
+app.use(express_default()["static"](frontendPath));
+// 3. MOUNT CORE API ROUTES
+app.use("/wifi", wifi_routes);
+app.use("/hotspot", hotspot_routes);
+app.use("/logs", logs_routes);
+// 4. FALLBACK CLIENT ROUTING CATCH-ALL
+// Ensures single-page app refreshes and routing variables load cleanly
+app.get("{/*splat}", (req, res) => {
+    res.sendFile(external_path_default().join(frontendPath, "index.html"));
+});
+/* harmony default export */ const dist_app = (app);
+//# sourceMappingURL=app.js.map
+
+/***/ }),
+
+/***/ 8321:
+/***/ ((__unused_webpack_module, __webpack_exports__, __nccwpck_require__) => {
+
+"use strict";
+/* harmony export */ __nccwpck_require__.d(__webpack_exports__, {
+/* harmony export */   e: () => (/* binding */ run)
+/* harmony export */ });
+/* harmony import */ var child_process__WEBPACK_IMPORTED_MODULE_0__ = __nccwpck_require__(5317);
+/* harmony import */ var child_process__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__nccwpck_require__.n(child_process__WEBPACK_IMPORTED_MODULE_0__);
+/* harmony import */ var util__WEBPACK_IMPORTED_MODULE_1__ = __nccwpck_require__(9023);
+/* harmony import */ var util__WEBPACK_IMPORTED_MODULE_1___default = /*#__PURE__*/__nccwpck_require__.n(util__WEBPACK_IMPORTED_MODULE_1__);
+
+
+const execAsync = (0,util__WEBPACK_IMPORTED_MODULE_1__.promisify)(child_process__WEBPACK_IMPORTED_MODULE_0__.exec);
+async function run(command) {
+    const { stdout, stderr } = await execAsync(command);
+    return {
+        stdout,
+        stderr,
+    };
+}
+//# sourceMappingURL=exec.js.map
+
+/***/ }),
+
 /***/ 4315:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
@@ -20956,6 +21395,14 @@ module.exports = require("buffer");
 
 /***/ }),
 
+/***/ 5317:
+/***/ ((module) => {
+
+"use strict";
+module.exports = require("child_process");
+
+/***/ }),
+
 /***/ 6982:
 /***/ ((module) => {
 
@@ -22266,17 +22713,6 @@ module.exports = /*#__PURE__*/JSON.parse('{"100":"Continue","101":"Switching Pro
 /******/ 		__nccwpck_require__.o = (obj, prop) => (Object.prototype.hasOwnProperty.call(obj, prop))
 /******/ 	})();
 /******/ 	
-/******/ 	/* webpack/runtime/make namespace object */
-/******/ 	(() => {
-/******/ 		// define __esModule on exports
-/******/ 		__nccwpck_require__.r = (exports) => {
-/******/ 			if(typeof Symbol !== 'undefined' && Symbol.toStringTag) {
-/******/ 				Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
-/******/ 			}
-/******/ 			Object.defineProperty(exports, '__esModule', { value: true });
-/******/ 		};
-/******/ 	})();
-/******/ 	
 /******/ 	/* webpack/runtime/node module decorator */
 /******/ 	(() => {
 /******/ 		__nccwpck_require__.nmd = (module) => {
@@ -22295,432 +22731,16 @@ var __webpack_exports__ = {};
 // This entry need to be wrapped in an IIFE because it need to be in strict mode.
 (() => {
 "use strict";
-// ESM COMPAT FLAG
-__nccwpck_require__.r(__webpack_exports__);
 
-// EXPORTS
-__nccwpck_require__.d(__webpack_exports__, {
-  PORT: () => (/* binding */ PORT)
-});
-
-// EXTERNAL MODULE: external "path"
-var external_path_ = __nccwpck_require__(6928);
-var external_path_default = /*#__PURE__*/__nccwpck_require__.n(external_path_);
-// EXTERNAL MODULE: ./server/node_modules/.pnpm/express@5.2.1/node_modules/express/index.js
-var express = __nccwpck_require__(2733);
-var express_default = /*#__PURE__*/__nccwpck_require__.n(express);
-// EXTERNAL MODULE: ./server/node_modules/.pnpm/cors@2.8.6/node_modules/cors/lib/index.js
-var lib = __nccwpck_require__(4263);
-var lib_default = /*#__PURE__*/__nccwpck_require__.n(lib);
-;// CONCATENATED MODULE: ./server/dist/routes/wifi.routes.js
-
-const wifiRouter = (0,express.Router)();
-wifiRouter.get("/status", (req, res) => {
-    res.json({ status: "active" });
-});
-/* harmony default export */ const wifi_routes = (wifiRouter);
-//# sourceMappingURL=wifi.routes.js.map
-;// CONCATENATED MODULE: external "child_process"
-const external_child_process_namespaceObject = require("child_process");
-// EXTERNAL MODULE: external "util"
-var external_util_ = __nccwpck_require__(9023);
-;// CONCATENATED MODULE: ./server/dist/utils/exec.js
-
-
-const execAsync = (0,external_util_.promisify)(external_child_process_namespaceObject.exec);
-async function run(command) {
-    const { stdout, stderr } = await execAsync(command);
-    return {
-        stdout,
-        stderr,
-    };
-}
-//# sourceMappingURL=exec.js.map
-;// CONCATENATED MODULE: ./server/dist/services/devices.service.js
-
-const VENDOR_LOOKUP = {
-    EA4349: "Samsung",
-    E84349: "Samsung",
-    A4DDAA: "Apple",
-    A4D18B: "Apple",
-    "000000": "Unknown",
-    "001122": "Cisco",
-    "000E0C": "Cisco",
-    "001E2A": "Dell",
-    "00E04C": "Intel",
-    "00A0C9": "Hewlett Packard",
-    "001E67": "Hewlett Packard",
-    "001C0F": "Huawei",
-    "0025B3": "Huawei",
-    "0018F3": "Lenovo",
-    "0004EA": "Xiaomi",
-    "0016F6": "Xiaomi",
-    "001A11": "Google",
-    "00157D": "Microsoft",
-};
-function normalizeIp(value) {
-    return value.trim();
-}
-function normalizeMac(value) {
-    const cleaned = value
-        .trim()
-        .toLowerCase()
-        .replace(/[^0-9a-f]/g, "");
-    if (cleaned.length !== 12)
-        return "";
-    return `${cleaned.slice(0, 2)}-${cleaned.slice(2, 4)}-${cleaned.slice(4, 6)}-${cleaned.slice(6, 8)}-${cleaned.slice(8, 10)}-${cleaned.slice(10, 12)}`;
-}
-function isFilteredOut(line) {
-    const normalized = line.trim();
-    if (!normalized)
-        return true;
-    const lowered = normalized.toLowerCase();
-    if (lowered === "---")
-        return true;
-    if (lowered.startsWith("interface:"))
-        return true;
-    if (lowered.startsWith("internet address"))
-        return true;
-    if (lowered.startsWith("physical address"))
-        return true;
-    if (lowered === "type")
-        return true;
-    if (lowered.startsWith("warning:"))
-        return true;
-    return false;
-}
-function isLikelyRealDevice(ip, mac) {
-    const normalizedIp = normalizeIp(ip);
-    const normalizedMac = normalizeMac(mac);
-    if (!normalizedIp || !normalizedMac)
-        return false;
-    if (normalizedIp === "255.255.255.255")
-        return false;
-    if (normalizedIp.endsWith(".255"))
-        return false;
-    if (normalizedIp.startsWith("224.") || normalizedIp.startsWith("239."))
-        return false;
-    if (normalizedIp === "0.0.0.0" || normalizedIp === "127.0.0.1")
-        return false;
-    if (normalizedMac === "ff-ff-ff-ff-ff-ff" ||
-        normalizedMac === "00-00-00-00-00-00")
-        return false;
-    return true;
-}
-function sanitizeHostname(value) {
-    if (!value)
-        return null;
-    const cleaned = value.trim().replace(/\.$/, "");
-    const placeholderValues = [
-        "unknown",
-        "physical",
-        "static",
-        "--",
-        "-",
-        "none",
-        "na",
-    ];
-    if (!cleaned || placeholderValues.includes(cleaned.toLowerCase()))
-        return null;
-    return cleaned;
-}
-function inferManufacturer(mac) {
-    const normalizedMac = normalizeMac(mac);
-    if (!normalizedMac)
-        return null;
-    const oui = normalizedMac.replace(/-/g, "").slice(0, 6).toUpperCase();
-    return VENDOR_LOOKUP[oui] || null;
-}
-function inferDeviceType(hostname, manufacturer) {
-    const source = `${hostname || ""} ${manufacturer || ""}`.toLowerCase();
-    if (!source)
-        return null;
-    if (/iphone|ipad|ipod|macbook|imac/i.test(source))
-        return "Phone";
-    if (/android|galaxy|samsung|pixel|xiaomi|redmi|oneplus|oppo|vivo|motorola|nokia/i.test(source))
-        return "Phone";
-    if (/laptop|notebook|surface|thinkpad|xps|latitude|elitebook|spectre|ultrabook/i.test(source))
-        return "Laptop";
-    if (/desktop|workstation|pc|win/i.test(source))
-        return "Desktop";
-    if (/router|switch|hub|nas|printer|access point|network/i.test(source))
-        return "Network Device";
-    if (manufacturer)
-        return "Device";
-    return null;
-}
-function buildDisplayName(hostname, manufacturer, deviceType) {
-    if (hostname)
-        return hostname;
-    if (manufacturer) {
-        const normalizedManufacturer = manufacturer.replace(/\s+Device$/i, "");
-        if (deviceType && deviceType !== "Device") {
-            return `${normalizedManufacturer} ${deviceType}`;
-        }
-        return `${normalizedManufacturer} Device`;
-    }
-    return "Unknown Device";
-}
-async function resolveHostname(ip) {
-    try {
-        const pingOutput = await run(`ping -a -n 1 -w 300 ${ip}`);
-        const text = `${pingOutput.stdout || ""}${pingOutput.stderr || ""}`;
-        const match = text.match(/Pinging\s+([^\s\[]+)/i);
-        if (match?.[1])
-            return sanitizeHostname(match[1]);
-    }
-    catch {
-        // Ignore and fall back to NetBIOS lookup.
-    }
-    try {
-        const nbtOutput = await run(`nbtstat -A ${ip}`);
-        const text = `${nbtOutput.stdout || ""}${nbtOutput.stderr || ""}`;
-        const match = text.match(/\b([A-Za-z0-9-]+)\s*<00>/i);
-        if (match?.[1])
-            return sanitizeHostname(match[1]);
-    }
-    catch {
-        // Ignore and return null.
-    }
-    return null;
-}
-const getConnectedDevices = async () => {
-    try {
-        const result = await run("arp -a");
-        const rawLines = (result.stdout || "").split(/\r?\n/);
-        const devices = [];
-        for (const rawLine of rawLines) {
-            const line = rawLine.trim();
-            if (!line || isFilteredOut(line))
-                continue;
-            const parts = line.split(/\s+/).filter(Boolean);
-            if (parts.length < 2)
-                continue;
-            const [ip, mac] = parts;
-            if (!isLikelyRealDevice(ip || "", mac || ""))
-                continue;
-            const normalizedMac = normalizeMac(mac || "");
-            const hostname = sanitizeHostname(parts[2] && parts[2] !== "dynamic" ? parts[2] : undefined);
-            const resolvedHostname = hostname || (await resolveHostname(ip || ""));
-            const manufacturer = inferManufacturer(normalizedMac || mac || "");
-            const deviceType = inferDeviceType(resolvedHostname || hostname, manufacturer);
-            const displayName = buildDisplayName(resolvedHostname || hostname, manufacturer, deviceType);
-            devices.push({
-                ip: normalizeIp(ip || ""),
-                mac: normalizedMac || mac || "unknown mac",
-                hostname: resolvedHostname || hostname || null,
-                displayName,
-                manufacturer,
-                deviceType,
-                ipAddress: normalizeIp(ip || ""),
-                macAddress: normalizedMac || mac || "unknown mac address",
-            });
-        }
-        return devices;
-    }
-    catch {
-        return [];
-    }
-};
-//# sourceMappingURL=devices.service.js.map
-;// CONCATENATED MODULE: ./server/dist/services/hotspot.service.js
-
-function parseStatus(output) {
-    const normalized = output.replace(/\r/g, "");
-    const lineMap = Object.fromEntries(normalized
-        .split("\n")
-        .map((line) => line.trim())
-        .filter(Boolean)
-        .map((line) => {
-        const parts = line.split(":");
-        const key = parts[0]?.trim().toLowerCase() ?? "";
-        if (!key || parts.length < 2)
-            return [line, ""];
-        return [key, parts.slice(1).join(":").trim()];
-    }));
-    const started = /started/i.test(normalized);
-    const ssid = lineMap["ssid name"] || lineMap["ssid"] || "HNet";
-    const maxClients = Number.parseInt(lineMap["max number of clients"] || "0", 10);
-    const clients = Number.parseInt(lineMap["number of clients"] || "0", 10);
-    const channel = Number.parseInt(lineMap["channel"] || "", 10) || null;
-    const radioType = lineMap["radio type"] || null;
-    const band = lineMap["band"] || null;
-    const bssid = lineMap["bssid"] || null;
-    return {
-        started,
-        ssid: ssid || "HNet",
-        maxClients: Number.isFinite(maxClients) ? maxClients : 0,
-        clients: Number.isFinite(clients) ? clients : 0,
-        channel,
-        radioType,
-        band,
-        bssid,
-    };
-}
-const hotspotService = {
-    set: ({ ssid, key }) => run(`netsh wlan set hostednetwork mode=allow ssid=${ssid} key=${key}`),
-    start: () => run("netsh wlan start hostednetwork"),
-    stop: () => run("netsh wlan stop hostednetwork"),
-    status: async () => {
-        const result = await run("netsh wlan show hostednetwork");
-        return {
-            success: true,
-            data: parseStatus(result.stdout || result.stderr || ""),
-        };
-    },
-};
-//# sourceMappingURL=hotspot.service.js.map
-// EXTERNAL MODULE: external "crypto"
-var external_crypto_ = __nccwpck_require__(6982);
-;// CONCATENATED MODULE: ./server/dist/utils/logger.js
-// server/src/utils/logger.ts
-
-const MAX_LOGS = 100;
-const logs = [];
-function log(level, message) {
-    logs.unshift({
-        id: (0,external_crypto_.randomUUID)(),
-        level,
-        message,
-        timestamp: new Date().toLocaleString(),
-    });
-    if (logs.length > MAX_LOGS)
-        logs.pop();
-}
-function getLogs() {
-    return logs;
-}
-//# sourceMappingURL=logger.js.map
-;// CONCATENATED MODULE: ./server/dist/routes/hotspot.routes.js
-
-
-
-
-const hotspotRouter = (0,express.Router)();
-const actionResult = (success, message) => ({
-    success,
-    message,
-});
-const handleAction = async (res, action) => {
-    try {
-        const result = await action();
-        const output = `${result.stdout || ""}${result.stderr || ""}`.trim();
-        if (!output) {
-            return res.json(actionResult(true, "The hotspot request completed successfully."));
-        }
-        return res.json(actionResult(true, output));
-    }
-    catch (error) {
-        console.error("Hotspot action failed", error);
-        return res.json(actionResult(false, "The hotspot request could not be completed."));
-    }
-};
-hotspotRouter.post("/set", async (req, res) => {
-    try {
-        console.log('set request...');
-        const { ssid = "HNet", key = "disconnect" } = req.body;
-        const normalizedSsid = `${ssid}`.trim();
-        const normalizedKey = `${key}`.trim();
-        const result = await hotspotService.set({
-            ssid: normalizedSsid || "HNet",
-            key: normalizedKey || "disconnect",
-        });
-        log("success", `Updated hotspot name to ${normalizedSsid || "HNet"}.`);
-        return res.json(actionResult(true, result.stdout ? result.stdout.trim() : "Hotspot settings updated."));
-    }
-    catch (error) {
-        console.error("error in set", error);
-        log("error", "Unable to update hotspot settings.");
-        return res.json(actionResult(false, "Unable to update hotspot settings."));
-    }
-});
-hotspotRouter.get("/start", async (_, res) => {
-    const response = await handleAction(res, () => hotspotService.start());
-    log("success", "Sharing started.");
-    return response;
-});
-hotspotRouter.post("/start", async (_, res) => {
-    const response = await handleAction(res, () => hotspotService.start());
-    log("success", "Sharing started.");
-    return response;
-});
-hotspotRouter.get("/stop", async (_, res) => {
-    const response = await handleAction(res, () => hotspotService.stop());
-    log("warning", "Sharing stopped.");
-    return response;
-});
-hotspotRouter.post("/stop", async (_, res) => {
-    const response = await handleAction(res, () => hotspotService.stop());
-    log("warning", "Sharing stopped.");
-    return response;
-});
-hotspotRouter.get("/status", async (_, res) => {
-    const result = await hotspotService.status();
-    res.json(result);
-});
-hotspotRouter.get("/devices", async (_, res) => {
-    const devices = await getConnectedDevices();
-    return res.json({ success: true, devices });
-});
-/* harmony default export */ const hotspot_routes = (hotspotRouter);
-//# sourceMappingURL=hotspot.routes.js.map
-;// CONCATENATED MODULE: ./server/dist/services/logs.service.js
-
-const logService = {
-    getAll() {
-        return getLogs();
-    }
-};
-//# sourceMappingURL=logs.service.js.map
-;// CONCATENATED MODULE: ./server/dist/routes/logs.routes.js
-
-
-const logRouter = (0,express.Router)();
-logRouter.get("/", (_, res) => {
-    return res.json({
-        success: true,
-        logs: logService.getAll(),
-        message: "Logs fetched successfully.",
-    });
-});
-/* harmony default export */ const logs_routes = (logRouter);
-//# sourceMappingURL=logs.routes.js.map
-;// CONCATENATED MODULE: ./server/dist/app.js
-
-
-
-
-
-
-const app = express_default()();
-// 1. DETERMINE PACKAGED STATE & LOCATE THE FRONTEND DIST DIRECTORY
-const isPackaged = process?.pkg ? true : false;
-const BACKEND_DIR = isPackaged
-    ? external_path_default().dirname(process.execPath)
-    : __dirname;
-// Fix: Steps out of 'server/bundled' inside the executable layout
-const frontendPath = external_path_default().join(__dirname, "client/dist");
-// 2. MIDDLEWARES & STATIC ASSET ENGINE
-app.use(lib_default()());
-app.use(express_default().json());
-// Serve your compiled static React assets
-app.use(express_default()["static"](frontendPath));
-// 3. MOUNT CORE API ROUTES
-app.use("/wifi", wifi_routes);
-app.use("/hotspot", hotspot_routes);
-app.use("/logs", logs_routes);
-// 4. FALLBACK CLIENT ROUTING CATCH-ALL
-// Ensures single-page app refreshes and routing variables load cleanly
-app.get("{/*splat}", (req, res) => {
-    res.sendFile(external_path_default().join(frontendPath, "index.html"));
-});
-/* harmony default export */ const dist_app = (app);
-//# sourceMappingURL=app.js.map
+// EXTERNAL MODULE: ./server/dist/utils/exec.js
+var exec = __nccwpck_require__(8321);
+// EXTERNAL MODULE: external "child_process"
+var external_child_process_ = __nccwpck_require__(5317);
 ;// CONCATENATED MODULE: ./server/dist/utils/isAdmin.js
 
 function isAdmin() {
     try {
-        const result = (0,external_child_process_namespaceObject.execSync)(`powershell -Command "([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)"`, { encoding: "utf8" });
+        const result = (0,external_child_process_.execSync)(`powershell -Command "([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)"`, { encoding: "utf8" });
         return result.trim().toLowerCase() === "true";
     }
     catch {
@@ -22728,32 +22748,50 @@ function isAdmin() {
     }
 }
 //# sourceMappingURL=isAdmin.js.map
+// EXTERNAL MODULE: ./server/node_modules/.pnpm/express@5.2.1/node_modules/express/index.js
+var express = __nccwpck_require__(2733);
+var express_default = /*#__PURE__*/__nccwpck_require__.n(express);
+// EXTERNAL MODULE: external "path"
+var external_path_ = __nccwpck_require__(6928);
+var external_path_default = /*#__PURE__*/__nccwpck_require__.n(external_path_);
 ;// CONCATENATED MODULE: ./server/dist/index.js
 
 
 
 
 const PORT = process.env.PORT || 4000;
+// Track the packaged relative folder asset pathway
+const frontendPath = external_path_default().join(__dirname, "client/dist");
 if (!isAdmin()) {
-    dist_app.listen(PORT, () => {
-        console.log("Not an Administrator. Serving static error and shutting down...");
-        // 1. Intercept requests to /admin-error.html BEFORE any React fallbacks can execute
-        dist_app.get("/admin-error.html", (req, res) => {
-            res.sendFile(external_path_default().join(frontendPath, "admin-error.html"));
-        });
-        // 2. Intercept root requests and route variables to point explicitly to the error asset
-        dist_app.get("/", (req, res) => {
-            res.redirect("/admin-error.html");
-        });
-        // 1. Force open the browser to show the error page
-        run(`start http://localhost:${PORT}/admin-error.html`);
+    console.log("❌ Unauthorized: Missing privileges. Booting lightweight error framework...");
+    // CRITICAL FIX: Initialize a completely isolated Express instance.
+    // This ensures your standard 'app.ts' fallback/static engine never runs!
+    const errorApp = express_default()();
+    // 1. Explicitly serve ONLY the dedicated raw HTML file at the root route
+    errorApp.get("/", (req, res) => {
+        res.sendFile(external_path_default().join(frontendPath, "admin-error.html"));
+    });
+    // 2. Handle favicon/asset background requests cleanly to prevent 404s
+    errorApp.use(express_default()["static"](frontendPath));
+    // 3. Start the standalone server instance
+    const errorServer = errorApp.listen(PORT, () => {
+        // Fire open the browser to the root server domain
+        (0,exec/* run */.e)(`start http://localhost:${PORT}`);
+        // Hold open the process for 2 seconds to allow the browser to safely pull the document stream, then terminate
+        setTimeout(() => {
+            errorServer.close(() => {
+                process.exit(1);
+            });
+        }, 2000);
     });
 }
 else {
-    // Standard production operational startup
-    dist_app.listen(PORT, () => {
+    // CRITICAL FIX: Only load and execute your master app engine when authorization passes.
+    // This delays the 'import' block completely until you are confirmed Admin!
+    const app = (__nccwpck_require__(9505)/* ["default"] */ .Ay);
+    app.listen(PORT, () => {
         console.log(`Server running quietly on http://localhost:${PORT}`);
-        run(`start http://localhost:${PORT}`);
+        (0,exec/* run */.e)(`start http://localhost:${PORT}`);
     });
 }
 //# sourceMappingURL=index.js.map

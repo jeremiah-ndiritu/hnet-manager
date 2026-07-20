@@ -1,31 +1,47 @@
-﻿import path from "path";
-import app, { frontendPath } from "./app";
-import { run } from "./utils/exec";
+﻿import { run } from "./utils/exec";
 import { isAdmin } from "./utils/isAdmin";
+import express from "express";
+import path from "path";
 
-export const PORT = process.env.PORT || 4000;
+const PORT = process.env.PORT || 4000;
+
+// Track the packaged relative folder asset pathway
+const frontendPath = path.join(__dirname, "client/dist");
 
 if (!isAdmin()) {
-  app.listen(PORT, () => {
-     console.log(
-       "Not an Administrator. Serving static error and shutting down...",
-     );
+  console.log(
+    "❌ Unauthorized: Missing privileges. Booting lightweight error framework...",
+  );
 
-     // 1. Intercept requests to /admin-error.html BEFORE any React fallbacks can execute
-     app.get("/admin-error.html", (req, res) => {
-       res.sendFile(path.join(frontendPath, "admin-error.html"));
-     });
+  // CRITICAL FIX: Initialize a completely isolated Express instance.
+  // This ensures your standard 'app.ts' fallback/static engine never runs!
+  const errorApp = express();
 
-     // 2. Intercept root requests and route variables to point explicitly to the error asset
-     app.get("/", (req, res) => {
-       res.redirect("/admin-error.html");
-     });
-    // 1. Force open the browser to show the error page
+  // 1. Explicitly serve ONLY the dedicated raw HTML file at the root route
+  errorApp.get("/", (req, res) => {
+    res.sendFile(path.join(frontendPath, "admin-error.html"));
+  });
 
-    run(`start http://localhost:${PORT}/admin-error.html`);
+  // 2. Handle favicon/asset background requests cleanly to prevent 404s
+  errorApp.use(express.static(frontendPath));
+
+  // 3. Start the standalone server instance
+  const errorServer = errorApp.listen(PORT, () => {
+    // Fire open the browser to the root server domain
+    run(`start http://localhost:${PORT}`);
+
+    // Hold open the process for 2 seconds to allow the browser to safely pull the document stream, then terminate
+    setTimeout(() => {
+      errorServer.close(() => {
+        process.exit(1);
+      });
+    }, 2000);
   });
 } else {
-  // Standard production operational startup
+  // CRITICAL FIX: Only load and execute your master app engine when authorization passes.
+  // This delays the 'import' block completely until you are confirmed Admin!
+  const app = require("./app").default;
+
   app.listen(PORT, () => {
     console.log(`Server running quietly on http://localhost:${PORT}`);
     run(`start http://localhost:${PORT}`);
