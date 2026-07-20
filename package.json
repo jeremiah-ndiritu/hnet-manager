@@ -3,9 +3,10 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
+  "bin": "server/bundled/index.js",
   "pkg": {
     "assets": [
-      "frontend/dist/**/*"
+      "server/bundled/client/dist/**/*"
     ],
     "targets": [
       "node18-win-x64"
@@ -14,8 +15,8 @@
   "scripts": {
     "build:client": "pnpm --filter client build",
     "build:server": "pnpm --filter server build",
-    "bundle:server": "ncc build server/dist/index.js -o server/bundled -m",
-    "package": "pnpm build:client && pnpm build:server && pnpm bundle:server && pkg server/bundled/index.js --target node18-win-x64 --output HNetManager.exe"
+    "bundle:server": "ncc build server/dist/index.js -o server/bundled",
+    "package": "pnpm build:client && pnpm build:server && pnpm bundle:server && powershell -Command \"Copy-Item -Recurse -Force client/dist server/bundled/client/dist\" && pkg package.json --output HNetManager.exe"
   },
   "keywords": [],
   "author": "",
