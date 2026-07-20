@@ -3,6 +3,14 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
+  "pkg": {
+    "assets": [
+      "frontend/dist/**/*"
+    ],
+    "targets": [
+      "node18-win-x64"
+    ]
+  },
   "scripts": {
     "build:client": "pnpm --filter client build",
     "build:server": "pnpm --filter server build",
