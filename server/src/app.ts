@@ -16,7 +16,7 @@ export const BACKEND_DIR = isPackaged
   : __dirname;
 
 // Fix: Steps out of 'server/bundled' inside the executable layout
-const frontendPath = path.join(__dirname, "client/dist");
+export const frontendPath = path.join(__dirname, "client/dist");
 
 
 // 2. MIDDLEWARES & STATIC ASSET ENGINE

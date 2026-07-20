@@ -22748,9 +22748,9 @@ function isAdmin() {
 
 const PORT = process.env.PORT || 4000;
 if (!isAdmin()) {
-    const tempServer = errorApp.listen(PORT, () => {
+    errorApp.listen(PORT, () => {
         // 1. Force open the browser to show the error page
-        run(`start http://localhost:${PORT}/admin-error`);
+        run(`start http://localhost:${PORT}/admin-error.html`);
     });
 }
 else {
