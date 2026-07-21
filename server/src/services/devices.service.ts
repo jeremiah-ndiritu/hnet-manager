@@ -11,6 +11,12 @@ export interface Device {
   macAddress?: string;
 }
 
+interface HostedNetworkInfo {
+  status: string | null;
+  clientCount: number;
+  clientMacAddresses: string[];
+}
+
 const VENDOR_LOOKUP: Record<string, string> = {
   EA4349: "Samsung",
   E84349: "Samsung",
@@ -56,25 +62,6 @@ function isFilteredOut(line: string): boolean {
   if (lowered === "type") return true;
   if (lowered.startsWith("warning:")) return true;
   return false;
-}
-
-function isLikelyRealDevice(ip: string, mac: string): boolean {
-  const normalizedIp = normalizeIp(ip);
-  const normalizedMac = normalizeMac(mac);
-
-  if (!normalizedIp || !normalizedMac) return false;
-  if (normalizedIp === "255.255.255.255") return false;
-  if (normalizedIp.endsWith(".255")) return false;
-  if (normalizedIp.startsWith("224.") || normalizedIp.startsWith("239."))
-    return false;
-  if (normalizedIp === "0.0.0.0" || normalizedIp === "127.0.0.1") return false;
-  if (
-    normalizedMac === "ff-ff-ff-ff-ff-ff" ||
-    normalizedMac === "00-00-00-00-00-00"
-  )
-    return false;
-
-  return true;
 }
 
 function sanitizeHostname(value: string | undefined): string | null {
@@ -143,7 +130,67 @@ function buildDisplayName(
   return "Unknown Device";
 }
 
+export function parseHostedNetworkInfo(output: string): HostedNetworkInfo {
+  const normalized = (output || "").replace(/\r/g, "");
+  const clientMacAddresses = new Set<string>();
+  let status: string | null = null;
+  let clientCount = 0;
+
+  for (const rawLine of normalized.split("\n")) {
+    const line = rawLine.trim();
+    if (!line) continue;
+
+    if (line.toLowerCase().startsWith("status:")) {
+      status = line.split(/:\s*/).slice(1).join(":").trim() || null;
+      continue;
+    }
+
+    const clientCountMatch = line.match(/number of clients\s*:\s*(\d+)/i);
+    if (clientCountMatch?.[1]) {
+      clientCount = Number.parseInt(clientCountMatch[1], 10) || 0;
+      continue;
+    }
+
+    const macMatch = line.match(
+      /client mac address\s*:\s*([0-9a-f]{2}(?:[:-][0-9a-f]{2}){5})/i,
+    );
+    if (macMatch?.[1]) {
+      const normalizedMac = normalizeMac(macMatch[1]);
+      if (normalizedMac) clientMacAddresses.add(normalizedMac);
+    }
+  }
+
+  return {
+    status,
+    clientCount: clientCount || clientMacAddresses.size,
+    clientMacAddresses: Array.from(clientMacAddresses),
+  };
+}
+
+export function parseArpEntries(output: string): Map<string, string> {
+  const entries = new Map<string, string>();
+  const rawLines = (output || "").replace(/\r/g, "").split("\n");
+
+  for (const rawLine of rawLines) {
+    const line = rawLine.trim();
+    if (!line || isFilteredOut(line)) continue;
+
+    const ipMatch = line.match(/\b\d{1,3}(?:\.\d{1,3}){3}\b/);
+    const macMatch = line.match(/([0-9a-f]{2}(?:[:-][0-9a-f]{2}){5})/i);
+
+    if (!ipMatch?.[0] || !macMatch?.[1]) continue;
+
+    const ip = normalizeIp(ipMatch[0]);
+    const mac = normalizeMac(macMatch[1]);
+    if (ip && mac) entries.set(mac, ip);
+  }
+
+  return entries;
+}
+
 async function resolveHostname(ip: string): Promise<string | null> {
+  if (!ip) return null;
+
   try {
     const pingOutput = await run(`ping -a -n 1 -w 300 ${ip}`);
     const text = `${pingOutput.stdout || ""}${pingOutput.stderr || ""}`;
@@ -167,47 +214,43 @@ async function resolveHostname(ip: string): Promise<string | null> {
 
 export const getConnectedDevices = async (): Promise<Device[]> => {
   try {
-    const result = await run("arp -a");
-    const rawLines = (result.stdout || "").split(/\r?\n/);
-    const devices: Device[] = [];
+    const hostedNetworkResult = await run("netsh wlan show hostednetwork");
+    const hostedNetworkInfo = parseHostedNetworkInfo(
+      hostedNetworkResult.stdout || hostedNetworkResult.stderr || "",
+    );
 
-    for (const rawLine of rawLines) {
-      const line = rawLine.trim();
-      if (!line || isFilteredOut(line)) continue;
+    const clientMacAddresses = hostedNetworkInfo.clientMacAddresses;
+    if (!clientMacAddresses.length) return [];
 
-      const parts = line.split(/\s+/).filter(Boolean);
-      if (parts.length < 2) continue;
+    const arpResult = await run("arp -a");
+    const arpEntries = parseArpEntries(
+      arpResult.stdout || arpResult.stderr || "",
+    );
 
-      const [ip, mac] = parts;
-      if (!isLikelyRealDevice(ip || "", mac || "")) continue;
+    const devices = await Promise.all(
+      clientMacAddresses.map(async (mac) => {
+        const ip = arpEntries.get(mac) || "";
+        const hostname = ip ? await resolveHostname(ip) : null;
+        const manufacturer = inferManufacturer(mac);
+        const deviceType = inferDeviceType(hostname, manufacturer);
+        const displayName = buildDisplayName(
+          hostname,
+          manufacturer,
+          deviceType,
+        );
 
-      const normalizedMac = normalizeMac(mac || "");
-      const hostname = sanitizeHostname(
-        parts[2] && parts[2] !== "dynamic" ? parts[2] : undefined,
-      );
-      const resolvedHostname = hostname || (await resolveHostname(ip || ""));
-      const manufacturer = inferManufacturer(normalizedMac || mac || "");
-      const deviceType = inferDeviceType(
-        resolvedHostname || hostname,
-        manufacturer,
-      );
-      const displayName = buildDisplayName(
-        resolvedHostname || hostname,
-        manufacturer,
-        deviceType,
-      );
-
-      devices.push({
-        ip: normalizeIp(ip || ""),
-        mac: normalizedMac || mac || "unknown mac",
-        hostname: resolvedHostname || hostname || null,
-        displayName,
-        manufacturer,
-        deviceType,
-        ipAddress: normalizeIp(ip || ""),
-        macAddress: normalizedMac || mac || "unknown mac address",
-      });
-    }
+        return {
+          ip,
+          mac,
+          hostname,
+          displayName,
+          manufacturer,
+          deviceType,
+          ipAddress: ip,
+          macAddress: mac,
+        };
+      }),
+    );
 
     return devices;
   } catch {
